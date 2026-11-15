@@ -16,6 +16,8 @@ dotnet publish -c Release         # trimmed + ReadyToRun self-contained build ->
 
 There are no tests, linters, or a solution file; the single `UsdMxn.csproj` is the whole project.
 
+CI: `.github/workflows/ci.yml` runs the trimmed Release publish on pushes to `main` and on pull requests. There are no tests, so a passing publish is the whole check.
+
 Releases: pushing a `v*` tag runs `.github/workflows/release.yml` (windows-latest), which publishes with `-p:Version=<tag without v>`, zips the output as `UsdMxn-<version>-win-x64.zip`, and creates a GitHub release. Running the workflow manually builds the zip as an artifact without releasing.
 
 ## Architecture

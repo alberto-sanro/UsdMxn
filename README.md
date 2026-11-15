@@ -1,5 +1,7 @@
 # USD × MXN
 
+[![CI](https://github.com/alberto-sanro/UsdMxn/actions/workflows/ci.yml/badge.svg)](https://github.com/alberto-sanro/UsdMxn/actions/workflows/ci.yml)
+
 A tiny Windows desktop app that shows the live US dollar → Mexican peso exchange rate.
 
 - Large headline rate, change vs. previous close, and the inverse rate
