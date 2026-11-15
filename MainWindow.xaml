@@ -66,10 +66,12 @@
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
                 <Grid>
-                    <TextBlock Text="Last 30 days"
-                               Style="{ThemeResource CaptionTextBlockStyle}"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <SelectorBar x:Name="RangeSelector" HorizontalAlignment="Left">
+                        <SelectorBarItem x:Name="MonthItem" Text="30 days" />
+                        <SelectorBarItem x:Name="YearItem" Text="12 months" />
+                    </SelectorBar>
                     <TextBlock x:Name="RangeText" HorizontalAlignment="Right"
+                               VerticalAlignment="Center"
                                Style="{ThemeResource CaptionTextBlockStyle}"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 </Grid>

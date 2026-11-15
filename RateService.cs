@@ -6,14 +6,15 @@ namespace UsdMxn;
 /// <summary>One reading of the USD→MXN rate.</summary>
 /// <param name="Rate">Pesos per one US dollar.</param>
 /// <param name="PrevClose">Previous daily close, when the source provides it.</param>
-/// <param name="History">Recent daily closes, oldest first (may be empty).</param>
+/// <param name="Month">Daily closes from the last 30 days, oldest first (may be empty).</param>
+/// <param name="Year">Daily closes from the last 12 months, oldest first (may be empty).</param>
 /// <param name="Live">True for the intraday market feed, false for the daily fallback.</param>
-public sealed record RateSnapshot(double Rate, double? PrevClose, double[] History, bool Live);
+public sealed record RateSnapshot(double Rate, double? PrevClose, double[] Month, double[] Year, bool Live);
 
 public static class RateService
 {
     private const string LiveUrl =
-        "https://query1.finance.yahoo.com/v8/finance/chart/MXN=X?interval=1d&range=1mo";
+        "https://query1.finance.yahoo.com/v8/finance/chart/MXN=X?interval=1d&range=1y";
     private const string DailyUrl = "https://open.er-api.com/v6/latest/USD";
 
     // One shared client. Idle connections are dropped after a minute by default,
@@ -62,13 +63,23 @@ public static class RateService
         double rate = result.GetProperty("meta").GetProperty("regularMarketPrice").GetDouble();
         if (!(rate > 0)) throw new InvalidDataException();
 
-        var closes = new List<double>(32);
-        if (result.TryGetProperty("indicators", out var ind) &&
+        // A year of daily closes paired with their timestamps; days without a close are skipped.
+        var closes = new List<double>(270);
+        var times = new List<long>(270);
+        if (result.TryGetProperty("timestamp", out var tsArr) &&
+            result.TryGetProperty("indicators", out var ind) &&
             ind.TryGetProperty("quote", out var quote) && quote.GetArrayLength() > 0 &&
             quote[0].TryGetProperty("close", out var closeArr))
         {
-            foreach (var c in closeArr.EnumerateArray())
-                if (c.ValueKind == JsonValueKind.Number) closes.Add(c.GetDouble());
+            var t = tsArr.EnumerateArray();
+            var c = closeArr.EnumerateArray();
+            while (t.MoveNext() && c.MoveNext())
+            {
+                if (c.Current.ValueKind != JsonValueKind.Number ||
+                    t.Current.ValueKind != JsonValueKind.Number) continue;
+                closes.Add(c.Current.GetDouble());
+                times.Add(t.Current.GetInt64());
+            }
         }
 
         // The last entry is today's (still moving) bar; the one before is the previous close.
@@ -80,7 +91,12 @@ public static class RateService
             prev = rate / (1 + pct.GetDouble() / 100);
         }
         if (closes.Count > 0) closes[^1] = rate;
-        return new RateSnapshot(rate, prev, closes.ToArray(), Live: true);
+
+        double[] year = closes.ToArray();
+        long monthStart = DateTimeOffset.UtcNow.AddDays(-30).ToUnixTimeSeconds();
+        int first = times.FindIndex(ts => ts >= monthStart);
+        double[] month = first < 0 ? [] : year[first..];
+        return new RateSnapshot(rate, prev, month, year, Live: true);
     }
 
     private static async Task<RateSnapshot> FetchDailyAsync()
@@ -88,6 +104,6 @@ public static class RateService
         using var doc = await GetJsonAsync(DailyUrl).ConfigureAwait(false);
         double rate = doc.RootElement.GetProperty("rates").GetProperty("MXN").GetDouble();
         if (!(rate > 0)) throw new InvalidDataException();
-        return new RateSnapshot(rate, null, [], Live: false);
+        return new RateSnapshot(rate, null, [], [], Live: false);
     }
 }

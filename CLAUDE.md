@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A small Windows desktop app (WinUI 3, .NET 10, x64 only) that shows the live USD→MXN exchange rate, a two-way amount converter, and a 30-day sparkline. It is built **unpackaged and self-contained** (`WindowsPackageType=None`, `WindowsAppSDKSelfContained=true`), so the output runs without installing the Windows App SDK runtime or MSIX.
+A small Windows desktop app (WinUI 3, .NET 10, x64 only) that shows the live USD→MXN exchange rate, a two-way amount converter, and a 30-day / 12-month sparkline. It is built **unpackaged and self-contained** (`WindowsPackageType=None`, `WindowsAppSDKSelfContained=true`), so the output runs without installing the Windows App SDK runtime or MSIX.
 
 ## Commands
 
@@ -22,12 +22,12 @@ Releases: pushing a `v*` tag runs `.github/workflows/release.yml` (windows-lates
 
 ## Architecture
 
-- `RateService.cs` — static, UI-free fetch layer returning an immutable `RateSnapshot`. It tries the Yahoo Finance chart endpoint first (live rate, previous close, ~1 month of daily closes; `Live = true`) and falls back to open.er-api.com (daily rate only, no history; `Live = false`). It returns `null` only when both fail. Previous close comes from Yahoo's `regularMarketChangePercent` when present, so the day change matches quote sites; the last close in the history is replaced by the live rate.
+- `RateService.cs` — static, UI-free fetch layer returning an immutable `RateSnapshot`. It tries the Yahoo Finance chart endpoint first (live rate, previous close, and one `range=1y` request of daily closes split by timestamp into `Year` and the last-30-days `Month`; `Live = true`) and falls back to open.er-api.com (daily rate only, no history; `Live = false`). It returns `null` only when both fail. Previous close comes from Yahoo's `regularMarketChangePercent` when present, so the day change matches quote sites; the last close in the history is replaced by the live rate.
 - `MainWindow.xaml.cs` — all UI logic in code-behind (no MVVM). Key behaviors spread across event handlers:
   - Refresh runs every 5 minutes on a `DispatcherQueueTimer`, guarded by `_busy`. The timer is **stopped while minimized**, and on restore or activation a refresh fires only if the last attempt is stale. When the network comes back, it retries only if the last attempt failed.
-  - When a refresh gets only the daily fallback, it keeps the previous snapshot's `History`/`PrevClose` so the sparkline doesn't vanish.
+  - When a refresh gets only the daily fallback, it keeps the previous snapshot's `Month`/`Year`/`PrevClose` so the sparkline doesn't vanish.
   - The converter decides direction by `FocusState`: only the focused `TextBox` drives conversion, and programmatic writes land on the unfocused one. This is what stops the two `TextChanged` handlers from feeding back into each other.
-  - The sparkline is a `Polyline` recomputed from `History` on every size change.
+  - The sparkline is a `Polyline` recomputed on every size change from `Month` or `Year`, depending on the `RangeSelector` `SelectorBar` (always starts on 30 days, not persisted). Switching tabs only redraws; it never refetches.
   - Custom title bar (`ExtendsContentIntoTitleBar` + `TitleBarArea`), Mica backdrop, and a DPI-scaled initial size of 420×580 via `GetDpiForWindow` P/Invoke. The window is forced out of maximized on first activation.
 
 ## Constraints to preserve

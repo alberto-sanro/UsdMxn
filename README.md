@@ -6,7 +6,7 @@ A tiny Windows desktop app that shows the live US dollar → Mexican peso exchan
 
 - Large headline rate, change vs. previous close, and the inverse rate
 - Two-way converter (type in either the USD or MXN box)
-- 30-day sparkline with low/high range
+- 30-day / 12-month sparkline with low/high range (toggle above the chart)
 - Auto-refresh every 5 minutes (paused while minimized), `F5` to refresh manually
 - Mica backdrop and a compact custom title bar
 
