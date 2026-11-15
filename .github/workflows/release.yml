@@ -1,0 +1,55 @@
+name: Release
+
+# Push a tag like v1.2.0 to build and publish a GitHub release.
+# Run manually (Actions tab → Release → Run workflow) to build a zip without releasing.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Determine version
+        id: ver
+        run: |
+          if ($env:GITHUB_REF_TYPE -eq 'tag') { $v = $env:GITHUB_REF_NAME.TrimStart('v') }
+          else { $v = "0.0.0-ci.$env:GITHUB_RUN_NUMBER" }
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Publish
+        run: dotnet publish UsdMxn.csproj -c Release -o publish -p:Version=${{ steps.ver.outputs.version }}
+
+      - name: Zip
+        id: zip
+        run: |
+          $zip = "UsdMxn-${{ steps.ver.outputs.version }}-win-x64.zip"
+          Compress-Archive -Path publish/* -DestinationPath $zip
+          "file=$zip" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: UsdMxn-${{ steps.ver.outputs.version }}-win-x64
+          path: ${{ steps.zip.outputs.file }}
+
+      - name: Create GitHub release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $extra = @()
+          if ('${{ steps.ver.outputs.version }}' -like '*-*') { $extra += '--prerelease' }
+          gh release create $env:GITHUB_REF_NAME '${{ steps.zip.outputs.file }}' --title $env:GITHUB_REF_NAME --generate-notes @extra

@@ -16,6 +16,8 @@ dotnet publish -c Release         # trimmed + ReadyToRun self-contained build ->
 
 There are no tests, linters, or a solution file; the single `UsdMxn.csproj` is the whole project.
 
+Releases: pushing a `v*` tag runs `.github/workflows/release.yml` (windows-latest), which publishes with `-p:Version=<tag without v>`, zips the output as `UsdMxn-<version>-win-x64.zip`, and creates a GitHub release. Running the workflow manually builds the zip as an artifact without releasing.
+
 ## Architecture
 
 - `RateService.cs` — static, UI-free fetch layer returning an immutable `RateSnapshot`. It tries the Yahoo Finance chart endpoint first (live rate, previous close, ~1 month of daily closes; `Live = true`) and falls back to open.er-api.com (daily rate only, no history; `Live = false`). It returns `null` only when both fail. Previous close comes from Yahoo's `regularMarketChangePercent` when present, so the day change matches quote sites; the last close in the history is replaced by the live rate.
