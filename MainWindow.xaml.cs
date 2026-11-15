@@ -23,10 +23,19 @@ public sealed partial class MainWindow : Window
     private bool _busy;
     private bool _minimized;
     private bool _shownOnce;
+    private bool _showYear;
 
     public MainWindow()
     {
         InitializeComponent();
+
+        // Select the default tab before subscribing, so the handler only runs on user changes.
+        RangeSelector.SelectedItem = MonthItem;
+        RangeSelector.SelectionChanged += (s, _) =>
+        {
+            _showYear = s.SelectedItem == YearItem;
+            DrawChart();
+        };
 
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(TitleBarArea);
@@ -68,8 +77,8 @@ public sealed partial class MainWindow : Window
             if (snap is not null)
             {
                 // Keep the richer live history if we only got the daily fallback this time.
-                if (!snap.Live && _last is { History.Length: > 0 } old)
-                    snap = snap with { History = old.History, PrevClose = old.PrevClose };
+                if (!snap.Live && _last is { Year.Length: > 0 } old)
+                    snap = snap with { Month = old.Month, Year = old.Year, PrevClose = old.PrevClose };
                 _last = snap;
                 _lastSuccessUtc = DateTime.UtcNow;
                 ShowRate(snap);
@@ -196,7 +205,7 @@ public sealed partial class MainWindow : Window
 
     private void DrawChart()
     {
-        double[]? h = _last?.History;
+        double[]? h = _showYear ? _last?.Year : _last?.Month;
         double w = ChartHost.ActualWidth, height = ChartHost.ActualHeight;
         var points = new PointCollection();
         if (h is { Length: >= 2 } && w > 0 && height > 0)
